@@ -4,10 +4,7 @@
 
 .text
 _start:
-adr r0, #fun1
-adr lr, #end
-bx r0
-end:
+bl #fun1
 # stop the vm
 bkpt
 
