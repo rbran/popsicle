@@ -9,14 +9,15 @@ fn main() {
     // Load a binary into the environment.
     let binary = format!("{}/simple.elf", env!("OUT_DIR"));
     env.load(&mut vm.cpu, binary.as_bytes()).unwrap();
+    let entry = env.lookup_symbol("_start").unwrap();
     vm.env = env;
 
     let vm: *mut _ = &mut vm;
     unsafe {
-        for i in (0x8000..).into_iter().step_by(2).take(100) {
+        for i in (entry..).into_iter().step_by(2).take(100) {
             (*vm).hook_address(i, move |cpu, addr| {
                 println!("{:#08X}: {:?}", addr, (*vm).get_disasm(addr));
-                for reg_name in ["r0", "r1", "r2", "r3", "pc", "lr"] {
+                for reg_name in ["r0", "r1", "pc"] {
                     let reg = cpu
                         .arch
                         .sleigh
@@ -29,19 +30,8 @@ fn main() {
             });
         }
 
-        // Run until the VM exits.
-        //vm.cpu.write_pc(0x8000);
-        let exit = (*vm).run();
+        // Run 2 steps
+        let exit = (*vm).step(2);
         println!("exit: {exit:?}");
-        for reg_name in ["r0", "r1", "r2", "r3"] {
-            let reg = (*vm)
-                .cpu
-                .arch
-                .sleigh
-                .get_reg(reg_name)
-                .map(|reg| reg.var)
-                .unwrap();
-            println!("{} {:#X}", reg_name, (*vm).cpu.read_reg(reg));
-        }
     }
 }
