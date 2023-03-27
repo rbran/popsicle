@@ -14,7 +14,7 @@ fn main() {
 
     let vm: *mut _ = &mut vm;
     unsafe {
-        for i in (entry..).into_iter().step_by(2).take(100) {
+        for i in (entry..).into_iter().step_by(4).take(2) {
             (*vm).hook_address(i, move |cpu, addr| {
                 println!("{:#08X}: {:?}", addr, (*vm).get_disasm(addr));
                 for reg_name in ["r0", "r1", "pc"] {
