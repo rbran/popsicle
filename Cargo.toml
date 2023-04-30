@@ -6,4 +6,4 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-icicle-vm = { git = "https://github.com/icicle-emu/icicle-emu", package = "icicle-vm"}
+icicle-vm = { path = "../icicle-emu/icicle-vm" }
