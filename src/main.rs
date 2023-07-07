@@ -1,56 +1,43 @@
-fn emu_arm() {
-    let cpu_config =
-        icicle_vm::cpu::Config::from_target_triple("armv8-unknown-unknown");
-    let mut vm = icicle_vm::build(&cpu_config).unwrap();
-
-    let mut env = icicle_vm::env::build_auto(&mut vm).unwrap();
-    let binary = format!("{}/arm-simple.elf", env!("OUT_DIR"));
-    env.load(&mut vm.cpu, binary.as_bytes()).unwrap();
-    vm.env = env;
-
-    let exit = vm.run();
-    println!("exit: {exit:?}");
-    for reg_name in ["r0", "pc"] {
-        let reg = vm
-            .cpu
-            .arch
-            .sleigh
-            .get_reg(reg_name)
-            .map(|reg| reg.var)
-            .unwrap();
-        println!("{} {:#X}", reg_name, vm.cpu.read_reg(reg));
-    }
-}
-
-fn emu_mips() {
-    let cpu_config =
-        icicle_vm::cpu::Config::from_target_triple("mips-unknown-unknown");
-    let mut vm = icicle_vm::build(&cpu_config).unwrap();
-
-    let mut env = icicle_vm::env::build_auto(&mut vm).unwrap();
-    let binary = format!("{}/mips-simple.elf", env!("OUT_DIR"));
-    env.load(&mut vm.cpu, binary.as_bytes()).unwrap();
-    vm.env = env;
-
-    let exit = vm.run();
-    println!("exit: {exit:?}");
-    for reg_name in ["v0", "pc"] {
-        let reg = vm
-            .cpu
-            .arch
-            .sleigh
-            .get_reg(reg_name)
-            .map(|reg| reg.var)
-            .unwrap();
-        println!("{} {:#X}", reg_name, vm.cpu.read_reg(reg));
-    }
-}
+use icicle_vm::cpu::mem::{perm, AllocLayout, Mapping};
 
 fn main() {
-    println!("arm: ");
-    emu_arm();
-    println!("\n");
-    println!("mips: ");
-    emu_mips();
-    println!("\n");
+    let cpu_config = icicle_vm::cpu::Config {
+        triple: "armv8-unknown-unknown".parse().unwrap(),
+        enable_shadow_stack: false,
+        ..icicle_vm::cpu::Config::default()
+    };
+    let mut vm = icicle_vm::build(&cpu_config).unwrap();
+    let pc = vm.cpu.arch.sleigh.get_reg("pc").unwrap().var;
+
+    let code = vm
+        .cpu
+        .mem
+        .alloc_memory(
+            AllocLayout {
+                addr: None,
+                size: 16,
+                align: 4,
+            },
+            Mapping {
+                perm: perm::ALL,
+                value: 0x00,
+            },
+        )
+        .unwrap();
+    vm.cpu
+        .mem
+        .write_bytes(code, &[
+         0x00, 0x00, 0xa0, 0xe1, //nop
+         0x00, 0x00, 0xa0, 0xe1, //nop
+        ], perm::ALL)
+        .unwrap();
+
+    vm.cpu.write_reg(pc, code);
+    vm.add_breakpoint(code + 4);
+    vm.add_breakpoint(code + 8);
+    let exit = vm.run();
+    println!("exit: {exit:?}");
+    vm.remove_breakpoint(code + 4);
+    vm.remove_breakpoint(code + 8); // subtraction with overflow
+    println!("pc {:#X}", vm.cpu.read_reg(pc));
 }
